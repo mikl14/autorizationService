@@ -57,7 +57,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
             if (tokenBlacklistService.isTokenBlacklisted(token)) {
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.getWriter().write("Токен отозван");
+                response.getWriter().write("Token is blocked");
                 return;
             }
         }
