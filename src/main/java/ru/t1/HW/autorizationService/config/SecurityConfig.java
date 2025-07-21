@@ -31,7 +31,7 @@ public class SecurityConfig {
                 .cors(cors -> {
                 })
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/api/auth/login", "/api/auth/register","/api/auth/refreshtoken").permitAll()
+                        .requestMatchers("/api/auth/login", "/api/auth/register", "/api/auth/refreshtoken").permitAll()
                         .requestMatchers("/api/auth/premium").hasAnyRole("PREMIUM_USER", "ADMIN")
                         .requestMatchers("/api/auth/admin").hasRole("ADMIN")
                         .anyRequest().authenticated()

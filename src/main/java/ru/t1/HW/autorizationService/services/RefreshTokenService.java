@@ -34,6 +34,7 @@ public class RefreshTokenService {
 
     /**
      * <b>createRefreshToken</b> - создает refreshToken
+     *
      * @param username
      * @return
      * @throws UsernameNotFoundException
@@ -50,10 +51,11 @@ public class RefreshTokenService {
 
     /**
      * <b>verifyExpiration</b> - валидирует refreshToken
+     *
      * @param token
      * @return
      */
-    public RefreshToken verifyExpiration(RefreshToken token) throws RuntimeException{
+    public RefreshToken verifyExpiration(RefreshToken token) throws RuntimeException {
         if (token.getExpiryDate().isBefore(Instant.now())) {
             refreshTokenRepository.delete(token);
             throw new RuntimeException("Refresh token expired. Please login again.");
@@ -70,6 +72,7 @@ public class RefreshTokenService {
 
     /**
      * <b>updateRefreshToken</b> - обновляет refresh токен, вызывается после использования токена для его замены.
+     *
      * @param requestRefreshToken
      * @return
      * @throws NoSuchElementException
@@ -83,6 +86,7 @@ public class RefreshTokenService {
 
     /**
      * <b>getOrCreateRefreshToken</b> - проверяет существует ли токен и возвращает его если он существует, или возвращает новый
+     *
      * @param username
      * @return
      * @throws UsernameNotFoundException
