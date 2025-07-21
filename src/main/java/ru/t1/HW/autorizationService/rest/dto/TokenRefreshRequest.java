@@ -1,4 +1,4 @@
-package ru.t1.HW.autorizationService.rest.request_and_response;
+package ru.t1.HW.autorizationService.rest.dto;
 
 import lombok.Getter;
 import lombok.Setter;

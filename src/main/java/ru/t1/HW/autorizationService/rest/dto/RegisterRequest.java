@@ -1,4 +1,4 @@
-package ru.t1.HW.autorizationService.rest.request_and_response;
+package ru.t1.HW.autorizationService.rest.dto;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -6,9 +6,7 @@ import ru.t1.HW.autorizationService.entities.Role;
 
 @Getter
 @Setter
-public class RegisterRequest {
-    private String username;
+public class RegisterRequest extends AuthRequest{
     private String email;
-    private String password;
     private Role role;
 }
