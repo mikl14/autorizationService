@@ -1,7 +1,5 @@
 package ru.t1.HW.autorizationService.rest;
 
-import lombok.Getter;
-import lombok.Setter;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -14,8 +12,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import ru.t1.HW.autorizationService.entities.Role;
 import ru.t1.HW.autorizationService.entities.User;
+import ru.t1.HW.autorizationService.rest.request_and_response.AuthRequest;
+import ru.t1.HW.autorizationService.rest.request_and_response.AuthResponse;
+import ru.t1.HW.autorizationService.rest.request_and_response.RegisterRequest;
 import ru.t1.HW.autorizationService.security.JwtUtils;
 import ru.t1.HW.autorizationService.services.UserService;
 
@@ -94,29 +94,4 @@ public class AuthController {
     }
 }
 
-
-@Getter
-@Setter
-class AuthRequest {
-    private String username;
-    private String password;
-}
-
-@Getter
-@Setter
-class AuthResponse {
-    private String token;
-    public AuthResponse(String token) {
-        this.token = token;
-    }
-}
-
-@Getter
-@Setter
-class RegisterRequest {
-    private String username;
-    private String email;
-    private String password;
-    private Role role;
-}
 
