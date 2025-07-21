@@ -40,7 +40,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         String servletPath = request.getServletPath();
-        if (servletPath.equals("/api/auth/register") || servletPath.equals("/api/auth/login")) {
+        if (servletPath.equals("/api/auth/register") || servletPath.equals("/api/auth/login") || servletPath.equals("/api/auth/refreshtoken")) {
             filterChain.doFilter(request, response); // тут пропускаем всех без проверки токена
             return;
         }
@@ -63,7 +63,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
 
         Authentication currentAuth = SecurityContextHolder.getContext().getAuthentication();
-
         if (username != null && (currentAuth == null || !currentAuth.isAuthenticated() || currentAuth instanceof AnonymousAuthenticationToken)) {
             UserDetails userDetails = userService.loadUserByUsername(username);
             if (userDetails != null) {

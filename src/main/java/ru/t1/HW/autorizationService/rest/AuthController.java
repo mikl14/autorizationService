@@ -9,11 +9,14 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import ru.t1.HW.autorizationService.entities.RefreshToken;
 import ru.t1.HW.autorizationService.entities.User;
 import ru.t1.HW.autorizationService.rest.request_and_response.AuthRequest;
 import ru.t1.HW.autorizationService.rest.request_and_response.AuthResponse;
 import ru.t1.HW.autorizationService.rest.request_and_response.RegisterRequest;
+import ru.t1.HW.autorizationService.rest.request_and_response.TokenRefreshRequest;
 import ru.t1.HW.autorizationService.security.JwtUtils;
+import ru.t1.HW.autorizationService.services.RefreshTokenService;
 import ru.t1.HW.autorizationService.services.TokenBlacklistService;
 import ru.t1.HW.autorizationService.services.UserService;
 
@@ -28,14 +31,16 @@ public class AuthController {
     private final JwtUtils jwtUtils;
     private final UserService userService;
     private final PasswordEncoder passwordEncoder;
+    private final RefreshTokenService refreshTokenService;
 
     private final TokenBlacklistService tokenBlacklistService;
 
-    public AuthController(AuthenticationManager authenticationManager, JwtUtils jwtUtils, UserService userService, PasswordEncoder passwordEncoder, TokenBlacklistService tokenBlacklistService) {
+    public AuthController(AuthenticationManager authenticationManager, JwtUtils jwtUtils, UserService userService, PasswordEncoder passwordEncoder, RefreshTokenService refreshTokenService, TokenBlacklistService tokenBlacklistService) {
         this.authenticationManager = authenticationManager;
         this.jwtUtils = jwtUtils;
         this.userService = userService;
         this.passwordEncoder = passwordEncoder;
+        this.refreshTokenService = refreshTokenService;
         this.tokenBlacklistService = tokenBlacklistService;
     }
 
@@ -64,11 +69,26 @@ public class AuthController {
             SecurityContextHolder.getContext().setAuthentication(authentication);
             String jwt = jwtUtils.generateJwtToken(request.getUsername());
 
-            return ResponseEntity.ok(new AuthResponse(jwt));
+            RefreshToken refreshToken = refreshTokenService.getOrCreateRefreshToken(request.getUsername());
+            return ResponseEntity.ok(new AuthResponse(jwt, refreshToken.getToken()));
         } catch (Exception e) {
             System.out.print(e);
         }
         return null;
+    }
+
+    @PostMapping("/refreshtoken")
+    public ResponseEntity<?> refreshToken(@RequestBody TokenRefreshRequest request) {
+        String requestRefreshToken = request.getRefreshToken();
+
+        return refreshTokenService.findByToken(requestRefreshToken)
+                .map(refreshTokenService::verifyExpiration)
+                .map(RefreshToken::getUser)
+                .map(user -> {
+                    String token = jwtUtils.generateJwtToken(user.getUsername());
+                    return ResponseEntity.ok(new AuthResponse(token, refreshTokenService.updateRefreshToken(requestRefreshToken).getToken()));
+                })
+                .orElse(ResponseEntity.status(HttpStatus.FORBIDDEN).build());
     }
 
     @PostMapping("/register")
@@ -79,7 +99,7 @@ public class AuthController {
                     .status(HttpStatus.BAD_REQUEST)
                     .body("Ошибка: Username уже занят");
         } catch (UsernameNotFoundException ex) {
-            if (userService.loadUserByEmail(registerRequest.getEmail()) != null) {
+            if (userService.getUserByEmail(registerRequest.getEmail()) != null) {
                 return ResponseEntity
                         .status(HttpStatus.BAD_REQUEST)
                         .body("Ошибка: Email уже зарегистрирован");
@@ -99,7 +119,6 @@ public class AuthController {
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
 
-            // Получаем дату истечения срока действия токена
             Date expirationDate = jwtUtils.getExpirationFromToken(token);
             if (expirationDate == null) {
                 return ResponseEntity.badRequest().body("Невалидный токен");
