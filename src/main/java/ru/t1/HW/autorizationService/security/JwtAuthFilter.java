@@ -16,6 +16,9 @@ import ru.t1.HW.autorizationService.services.UserService;
 
 import java.io.IOException;
 
+/**
+ * <b>JwtUtils</b> - содержит логику аунтификации по токену, пропускает буз проверки на токен запросы на регистрацию и вход
+ */
 @Component
 public class JwtAuthFilter extends OncePerRequestFilter {
 
@@ -34,19 +37,15 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         String servletPath = request.getServletPath();
-        // Пропускаем без проверки токена эндпоинты регистрации и логина
-
         if (servletPath.equals("/api/auth/register") || servletPath.equals("/api/auth/login")) {
-            filterChain.doFilter(request, response);
+            filterChain.doFilter(request, response); // тут пропускаем всех без проверки токена
             return;
         }
 
         String header = request.getHeader("Authorization");
         String token = null;
-        String username = request.getHeader("username");
+        String username = null;
 
-
-        // Ожидаем header "Authorization: Bearer <токен>"
         if (header != null && header.startsWith("Bearer ")) {
             token = header.substring(7);
             if (jwtUtils.validateJwtToken(token)) {
@@ -54,12 +53,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             }
         }
 
-
-
         Authentication currentAuth = SecurityContextHolder.getContext().getAuthentication();
 
         if (username != null && (currentAuth == null || !currentAuth.isAuthenticated() || currentAuth instanceof AnonymousAuthenticationToken)) {
-            UserDetails userDetails = userService.getUserByUserName(username);
+            UserDetails userDetails = userService.loadUserByUsername(username);
             if (userDetails != null) {
                 try {
                     UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
@@ -67,15 +64,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     );
                     auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(auth);
-                }
-                catch (Exception e)
-                {
+                } catch (Exception e) {
                     System.out.print(e);
                 }
             }
         }
-
-
         filterChain.doFilter(request, response);
     }
 }

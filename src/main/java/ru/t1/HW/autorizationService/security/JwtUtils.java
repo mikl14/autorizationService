@@ -1,19 +1,33 @@
 package ru.t1.HW.autorizationService.security;
-import io.jsonwebtoken.*;
+
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
-import org.springframework.security.core.userdetails.UserDetails;
+import jakarta.annotation.PostConstruct;
+import lombok.Getter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
 import java.util.Date;
-import java.util.function.Function;
 
+/**
+ * <b>JwtUtils</b> - содержит методы для работы с jwt токенами
+ */
 @Component
 public class JwtUtils {
-    private final String jwtSecret = "8ba603c68edab6a6f63a161637a8dab13c1859bd0f287e3e30c10ff8929b3ce0";
+    @Value("${jwt.secret}")
+    private String jwtSecret;
     private final long jwtExpirationMs = 60000; // 5 минут
 
-    private final Key key = Keys.hmacShaKeyFor(jwtSecret.getBytes());
+    @Getter
+    private Key key;
+
+    @PostConstruct
+    public void init() {
+        this.key = key = Keys.hmacShaKeyFor(jwtSecret.getBytes());
+    }
 
     public String generateJwtToken(String username) {
         return Jwts.builder()

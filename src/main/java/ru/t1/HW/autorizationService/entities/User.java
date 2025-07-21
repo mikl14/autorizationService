@@ -25,10 +25,10 @@ public class User implements UserDetails {
     private Long id;
 
     @Column(nullable = false, unique = true)
-    private String username; // Логин, уникальный
+    private String username;
 
     @Column(nullable = false)
-    private String password; // Хранить в зашифрованном виде (BCrypt)
+    private String password;
 
     @Email
     @Column(nullable = false, unique = true)
@@ -37,35 +37,34 @@ public class User implements UserDetails {
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))
     @Column(name = "role")
-    private Set<String> roles;
-
-    // Реализация методов интерфейса UserDetails (для Spring Security)
+    @Enumerated(EnumType.STRING)
+    private Set<Role> roles;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return roles.stream()
-                .map(role -> (GrantedAuthority) () -> "ROLE_" + role.toUpperCase())
+                .map(role -> (GrantedAuthority) () -> "ROLE_" + role.name())
                 .collect(Collectors.toSet());
     }
 
     @Override
     public boolean isAccountNonExpired() {
-        return true;  // при необходимости можно добавить логику
+        return true;
     }
 
     @Override
     public boolean isAccountNonLocked() {
-        return true;  // при необходимости можно добавить логику
+        return true;
     }
 
     @Override
     public boolean isCredentialsNonExpired() {
-        return true;  // при необходимости можно добавить логику
+        return true;
     }
 
     @Override
     public boolean isEnabled() {
-        return true;  // при необходимости можно добавить логику
+        return true;
     }
 
 }

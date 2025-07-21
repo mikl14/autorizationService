@@ -7,8 +7,6 @@ import org.springframework.stereotype.Service;
 import ru.t1.HW.autorizationService.entities.User;
 import ru.t1.HW.autorizationService.repositories.UserRepository;
 
-import java.util.NoSuchElementException;
-
 @Service
 public class UserService implements UserDetailsService {
 
@@ -18,23 +16,16 @@ public class UserService implements UserDetailsService {
         this.userRepository = userRepository;
     }
 
-    public User getUserByUserName(String username) throws UsernameNotFoundException
-    {
-        return userRepository.findByUsername(username).orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
-    }
-
-    public User getUserByEmail(String email)
-    {
+    public User loadUserByEmail(String email) {
         return userRepository.findByEmail(email).orElse(null);
     }
 
-    public void saveUser(User user)
-    {
+    public void saveUser(User user) {
         userRepository.save(user);
     }
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        return getUserByUserName(username);
+        return userRepository.findByUsername(username).orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
     }
 }

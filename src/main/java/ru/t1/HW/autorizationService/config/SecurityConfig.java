@@ -12,7 +12,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import ru.t1.HW.autorizationService.security.JwtAuthFilter;
-import ru.t1.HW.autorizationService.services.UserService;
 
 @Configuration
 @EnableMethodSecurity
@@ -20,11 +19,9 @@ import ru.t1.HW.autorizationService.services.UserService;
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
-    private final UserService userService;
 
-    public SecurityConfig(JwtAuthFilter jwtAuthFilter, UserService userService) {
+    public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
         this.jwtAuthFilter = jwtAuthFilter;
-        this.userService = userService;
     }
 
     @Bean
@@ -32,9 +29,11 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> {
-                }) // Настрой CORS если нужно
+                })
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
+                        .requestMatchers("/api/auth/premium").hasAnyRole("PREMIUM_USER", "ADMIN")
+                        .requestMatchers("/api/auth/admin").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
