@@ -8,17 +8,16 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import ru.t1.HW.autorizationService.entities.User;
 import ru.t1.HW.autorizationService.rest.request_and_response.AuthRequest;
 import ru.t1.HW.autorizationService.rest.request_and_response.AuthResponse;
 import ru.t1.HW.autorizationService.rest.request_and_response.RegisterRequest;
 import ru.t1.HW.autorizationService.security.JwtUtils;
+import ru.t1.HW.autorizationService.services.TokenBlacklistService;
 import ru.t1.HW.autorizationService.services.UserService;
 
+import java.util.Date;
 import java.util.Set;
 
 @RestController
@@ -30,11 +29,14 @@ public class AuthController {
     private final UserService userService;
     private final PasswordEncoder passwordEncoder;
 
-    public AuthController(AuthenticationManager authenticationManager, JwtUtils jwtUtils, UserService userService, PasswordEncoder passwordEncoder) {
+    private final TokenBlacklistService tokenBlacklistService;
+
+    public AuthController(AuthenticationManager authenticationManager, JwtUtils jwtUtils, UserService userService, PasswordEncoder passwordEncoder, TokenBlacklistService tokenBlacklistService) {
         this.authenticationManager = authenticationManager;
         this.jwtUtils = jwtUtils;
         this.userService = userService;
         this.passwordEncoder = passwordEncoder;
+        this.tokenBlacklistService = tokenBlacklistService;
     }
 
     @PostMapping("/index")
@@ -82,7 +84,6 @@ public class AuthController {
                         .status(HttpStatus.BAD_REQUEST)
                         .body("Ошибка: Email уже зарегистрирован");
             }
-
             User user = new User();
             user.setUsername(registerRequest.getUsername());
             user.setEmail(registerRequest.getEmail());
@@ -92,6 +93,21 @@ public class AuthController {
             return ResponseEntity.ok("Пользователь успешно зарегистрирован");
         }
     }
+
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(@RequestHeader("Authorization") String authHeader) {
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7);
+
+            // Получаем дату истечения срока действия токена
+            Date expirationDate = jwtUtils.getExpirationFromToken(token);
+            if (expirationDate == null) {
+                return ResponseEntity.badRequest().body("Невалидный токен");
+            }
+
+            tokenBlacklistService.blacklistToken(token, expirationDate);
+            return ResponseEntity.ok("Токен успешно отозван");
+        }
+        return ResponseEntity.badRequest().body("Отсутствует токен для отзыва");
+    }
 }
-
-

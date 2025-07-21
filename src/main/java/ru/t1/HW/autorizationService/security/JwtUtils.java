@@ -52,4 +52,17 @@ public class JwtUtils {
             return false;
         }
     }
+
+    public Date getExpirationFromToken(String token) {
+        try {
+            return Jwts.parserBuilder()
+                    .setSigningKey(key) // ваш секретный ключ
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody()
+                    .getExpiration();
+        } catch (JwtException e) {
+            return null;
+        }
+    }
 }

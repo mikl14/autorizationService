@@ -12,6 +12,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import ru.t1.HW.autorizationService.services.TokenBlacklistService;
 import ru.t1.HW.autorizationService.services.UserService;
 
 import java.io.IOException;
@@ -24,10 +25,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtUtils jwtUtils;
     private final UserService userService;
+    private final TokenBlacklistService tokenBlacklistService;
 
-    public JwtAuthFilter(JwtUtils jwtUtils, UserService userService) {
+    public JwtAuthFilter(JwtUtils jwtUtils, UserService userService, TokenBlacklistService tokenBlacklistService) {
         this.jwtUtils = jwtUtils;
         this.userService = userService;
+        this.tokenBlacklistService = tokenBlacklistService;
     }
 
     @Override
@@ -50,6 +53,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             token = header.substring(7);
             if (jwtUtils.validateJwtToken(token)) {
                 username = jwtUtils.getUsernameFromJwtToken(token);
+            }
+
+            if (tokenBlacklistService.isTokenBlacklisted(token)) {
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.getWriter().write("Токен отозван");
+                return;
             }
         }
 
