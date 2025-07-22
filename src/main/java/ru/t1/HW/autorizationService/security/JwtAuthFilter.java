@@ -18,7 +18,7 @@ import ru.t1.HW.autorizationService.services.UserService;
 import java.io.IOException;
 
 /**
- * <b>JwtUtils</b> - содержит логику аунтификации по токену, пропускает буз проверки на токен запросы на регистрацию и вход
+ * <b>JwtUtils</b> - содержит логику аунтификации по токену, пропускает без проверки на токен запросы на регистрацию и вход
  */
 @Component
 public class JwtAuthFilter extends OncePerRequestFilter {

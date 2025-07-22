@@ -19,7 +19,7 @@ import java.util.Date;
 public class JwtUtils {
     @Value("${jwt.secret}")
     private String jwtSecret;
-    private final long jwtExpirationMs = 60000; // 5 минут
+    private final long jwtExpirationMs = 300000; // 5 минут
 
     @Getter
     private Key key;
