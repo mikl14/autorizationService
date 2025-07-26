@@ -4,6 +4,9 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.jose4j.jwt.MalformedClaimException;
+import org.jose4j.jwt.consumer.InvalidJwtException;
+import org.jose4j.lang.JoseException;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -52,7 +55,15 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         if (header != null && header.startsWith("Bearer ")) {
             token = header.substring(7);
             if (jwtUtils.validateJwtToken(token)) {
-                username = jwtUtils.getUsernameFromJwtToken(token);
+                try {
+                    username = jwtUtils.getUsernameFromJwtToken(token);
+                } catch (JoseException e) {
+                    throw new RuntimeException(e);
+                } catch (InvalidJwtException e) {
+                    throw new RuntimeException(e);
+                } catch (MalformedClaimException e) {
+                    throw new RuntimeException(e);
+                }
             }
 
             if (tokenBlacklistService.isTokenBlacklisted(token)) {

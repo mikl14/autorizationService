@@ -1,5 +1,6 @@
 package ru.t1.HW.autorizationService.rest;
 
+import org.jose4j.lang.JoseException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -85,7 +86,12 @@ public class AuthController {
                 .map(refreshTokenService::verifyExpiration)
                 .map(RefreshToken::getUser)
                 .map(user -> {
-                    String token = jwtUtils.generateJwtToken(user.getUsername());
+                    String token = null;
+                    try {
+                        token = jwtUtils.generateJwtToken(user.getUsername());
+                    } catch (JoseException e) {
+                        throw new RuntimeException(e);
+                    }
                     return ResponseEntity.ok(new AuthResponse(token, refreshTokenService.updateRefreshToken(requestRefreshToken).getToken()));
                 })
                 .orElse(ResponseEntity.status(HttpStatus.FORBIDDEN).build());
