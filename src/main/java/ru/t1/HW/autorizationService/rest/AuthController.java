@@ -75,20 +75,17 @@ public class AuthController {
                 return ResponseEntity.badRequest().body("Невалидный токен");
             }
             tokenWhitelistService.whitelistAddToken(jwt, expirationDate);
-
             RefreshToken refreshToken = refreshTokenService.getOrCreateRefreshToken(request.getUsername());
-
             return ResponseEntity.ok(new AuthResponse(jwt, refreshToken.getToken()));
         } catch (Exception e) {
             System.out.print(e);
         }
-        return null;
+        return ResponseEntity.internalServerError().body("error on login");
     }
 
     @PostMapping("/refreshtoken")
     public ResponseEntity<?> refreshToken(@RequestBody TokenRefreshRequest request) {
         String requestRefreshToken = request.getRefreshToken();
-
 
         return refreshTokenService.findByToken(requestRefreshToken)
                 .map(refreshTokenService::verifyExpiration)
@@ -98,7 +95,7 @@ public class AuthController {
                     try {
                         token = jwtUtils.generateJwtToken(user.getUsername());
                     } catch (JoseException e) {
-                        throw new RuntimeException(e);
+                        return ResponseEntity.internalServerError().body("error on create token");
                     }
                     Date expirationDate = jwtUtils.getExpirationFromToken(token);
                     if (expirationDate == null) {

@@ -50,15 +50,15 @@ public class JwtUtils {
         jws.setPayload(claims.toJson());
 
         jws.setAlgorithmHeaderValue(AlgorithmIdentifiers.HMAC_SHA256);
-        jws.setKey(keySigning); // секретный ключ для подписи (javax.crypto.SecretKey или byte[])
+        jws.setKey(keySigning);
 
         String jwsCompact = jws.getCompactSerialization();
 
         JsonWebEncryption jwe = new JsonWebEncryption();
         jwe.setAlgorithmHeaderValue(KeyManagementAlgorithmIdentifiers.DIRECT);
         jwe.setEncryptionMethodHeaderParameter(ContentEncryptionAlgorithmIdentifiers.AES_256_GCM);
-        jwe.setPayload(jwsCompact); // payload - подписанный токен
-        jwe.setKey(keyEncryption); // ключ для шифрования (SecretKey или byte[])
+        jwe.setPayload(jwsCompact);
+        jwe.setKey(keyEncryption);
 
         return jwe.getCompactSerialization();
     }

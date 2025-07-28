@@ -57,11 +57,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             if (jwtUtils.validateJwtToken(token)) {
                 try {
                     username = jwtUtils.getUsernameFromJwtToken(token);
-                } catch (JoseException e) {
-                    throw new RuntimeException(e);
-                } catch (InvalidJwtException e) {
-                    throw new RuntimeException(e);
-                } catch (MalformedClaimException e) {
+                } catch (JoseException | InvalidJwtException | MalformedClaimException e) {
                     throw new RuntimeException(e);
                 }
             }
