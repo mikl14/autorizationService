@@ -1,9 +1,12 @@
 package ru.t1.HW.autorizationService.security;
 
+import jakarta.annotation.PostConstruct;
 import lombok.Getter;
-import org.jose4j.jwe.JsonWebEncryption;
 import org.jose4j.jwe.ContentEncryptionAlgorithmIdentifiers;
+import org.jose4j.jwe.JsonWebEncryption;
 import org.jose4j.jwe.KeyManagementAlgorithmIdentifiers;
+import org.jose4j.jws.AlgorithmIdentifiers;
+import org.jose4j.jws.JsonWebSignature;
 import org.jose4j.jwt.JwtClaims;
 import org.jose4j.jwt.MalformedClaimException;
 import org.jose4j.jwt.NumericDate;
@@ -12,12 +15,9 @@ import org.jose4j.lang.JoseException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import jakarta.annotation.PostConstruct;
-import java.security.Key;
 import javax.crypto.spec.SecretKeySpec;
+import java.security.Key;
 import java.security.NoSuchAlgorithmException;
-import java.security.PublicKey;
-import java.security.PrivateKey;
 import java.util.Date;
 
 /**
@@ -25,17 +25,19 @@ import java.util.Date;
  */
 @Component
 public class JwtUtils {
-    @Value("${jwt.secret}")
-    private String jwtSecret;
+    @Value("${secret.signing}")
+    private String secretSigning;
+    @Value("${secret.signing}")
+    private String secretEncryption;
     private final long jwtExpirationMs = 300000; // 5 минут
 
     @Getter
-    private Key key;
-
+    private Key keySigning, keyEncryption;
 
     @PostConstruct
     public void init() throws NoSuchAlgorithmException {
-        this.key = new SecretKeySpec(jwtSecret.getBytes(), "AES");
+        this.keySigning = new SecretKeySpec(secretSigning.getBytes(), "AES");
+        this.keyEncryption = new SecretKeySpec(secretEncryption.getBytes(), "AES");
     }
 
     public String generateJwtToken(String username) throws JoseException {
@@ -43,52 +45,56 @@ public class JwtUtils {
         claims.setSubject(username);
         claims.setIssuedAtToNow();
         claims.setExpirationTimeMinutesInTheFuture(jwtExpirationMs / 60000.0f);
+
+        JsonWebSignature jws = new JsonWebSignature();
+        jws.setPayload(claims.toJson());
+
+        jws.setAlgorithmHeaderValue(AlgorithmIdentifiers.HMAC_SHA256);
+        jws.setKey(keySigning); // секретный ключ для подписи (javax.crypto.SecretKey или byte[])
+
+        String jwsCompact = jws.getCompactSerialization();
+
         JsonWebEncryption jwe = new JsonWebEncryption();
         jwe.setAlgorithmHeaderValue(KeyManagementAlgorithmIdentifiers.DIRECT);
         jwe.setEncryptionMethodHeaderParameter(ContentEncryptionAlgorithmIdentifiers.AES_256_GCM);
-        jwe.setPayload(claims.toJson());
-        jwe.setKey(key);
+        jwe.setPayload(jwsCompact); // payload - подписанный токен
+        jwe.setKey(keyEncryption); // ключ для шифрования (SecretKey или byte[])
+
         return jwe.getCompactSerialization();
     }
 
     public String getUsernameFromJwtToken(String token) throws JoseException, InvalidJwtException, MalformedClaimException {
-        JsonWebEncryption jwe = new JsonWebEncryption();
-        jwe.setCompactSerialization(token);
-        jwe.setKey(key);
-
-        String decryptedPayload = jwe.getPayload();
-
-        JwtClaims claims = JwtClaims.parse(decryptedPayload);
+        JwtClaims claims = getJwtClaimsFromJwe(token);
         return claims.getSubject();
     }
 
-    private JwtClaims getJwtClaimsFromJwe(String authToken)
-    {
+    private JwtClaims getJwtClaimsFromJwe(String authToken) {
         try {
             JsonWebEncryption jwe = new JsonWebEncryption();
             jwe.setCompactSerialization(authToken);
-            jwe.setKey(key);
+            jwe.setKey(keyEncryption);
+            String jwsCompact = jwe.getPayload();
 
-            String payload = jwe.getPayload();
-            return JwtClaims.parse(payload);
-        } catch (InvalidJwtException e) {
-            throw new RuntimeException(e);
-        } catch (JoseException e) {
+            JsonWebSignature jws = new JsonWebSignature();
+            jws.setCompactSerialization(jwsCompact);
+            jws.setKey(keySigning);
+            if (!jws.verifySignature()) {
+                throw new RuntimeException("Invalid JWS signature");
+            }
+
+            return JwtClaims.parse(jws.getPayload());
+
+        } catch (InvalidJwtException | JoseException e) {
             throw new RuntimeException(e);
         }
-
     }
 
     public boolean validateJwtToken(String authToken) {
         try {
             JwtClaims claims = getJwtClaimsFromJwe(authToken);
-            if (claims.getExpirationTime() != null && claims.getExpirationTime().isBefore(NumericDate.now())) {
-                return false;
-            }
-
-            return true;
-        } catch (Exception e) {
-            return false;
+            return claims.getExpirationTime() == null || !claims.getExpirationTime().isBefore(NumericDate.now());
+        } catch (MalformedClaimException e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -97,7 +103,7 @@ public class JwtUtils {
             JwtClaims claims = getJwtClaimsFromJwe(token);
             NumericDate expiration = claims.getExpirationTime();
             if (expiration == null) {
-                return null; // или выберите другое поведение при отсутствии exp
+                return null;
             }
             return new Date(expiration.getValue() * 1000L);
         } catch (MalformedClaimException e) {

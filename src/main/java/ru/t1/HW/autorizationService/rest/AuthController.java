@@ -1,5 +1,6 @@
 package ru.t1.HW.autorizationService.rest;
 
+import jakarta.servlet.http.HttpServletResponse;
 import org.jose4j.lang.JoseException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,7 +19,7 @@ import ru.t1.HW.autorizationService.rest.dto.RegisterRequest;
 import ru.t1.HW.autorizationService.rest.dto.TokenRefreshRequest;
 import ru.t1.HW.autorizationService.security.JwtUtils;
 import ru.t1.HW.autorizationService.services.RefreshTokenService;
-import ru.t1.HW.autorizationService.services.TokenBlacklistService;
+import ru.t1.HW.autorizationService.services.TokenWhitelistService;
 import ru.t1.HW.autorizationService.services.UserService;
 
 import java.util.Date;
@@ -34,15 +35,15 @@ public class AuthController {
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenService refreshTokenService;
 
-    private final TokenBlacklistService tokenBlacklistService;
+    private final TokenWhitelistService tokenWhitelistService;
 
-    public AuthController(AuthenticationManager authenticationManager, JwtUtils jwtUtils, UserService userService, PasswordEncoder passwordEncoder, RefreshTokenService refreshTokenService, TokenBlacklistService tokenBlacklistService) {
+    public AuthController(AuthenticationManager authenticationManager, JwtUtils jwtUtils, UserService userService, PasswordEncoder passwordEncoder, RefreshTokenService refreshTokenService, TokenWhitelistService tokenWhitelistService) {
         this.authenticationManager = authenticationManager;
         this.jwtUtils = jwtUtils;
         this.userService = userService;
         this.passwordEncoder = passwordEncoder;
         this.refreshTokenService = refreshTokenService;
-        this.tokenBlacklistService = tokenBlacklistService;
+        this.tokenWhitelistService = tokenWhitelistService;
     }
 
     @PostMapping("/index")
@@ -61,7 +62,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody AuthRequest request) {
+    public ResponseEntity<?> login(@RequestBody AuthRequest request, HttpServletResponse response) {
         try {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
@@ -69,8 +70,14 @@ public class AuthController {
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
             String jwt = jwtUtils.generateJwtToken(request.getUsername());
+            Date expirationDate = jwtUtils.getExpirationFromToken(jwt);
+            if (expirationDate == null) {
+                return ResponseEntity.badRequest().body("Невалидный токен");
+            }
+            tokenWhitelistService.whitelistAddToken(jwt, expirationDate);
 
             RefreshToken refreshToken = refreshTokenService.getOrCreateRefreshToken(request.getUsername());
+
             return ResponseEntity.ok(new AuthResponse(jwt, refreshToken.getToken()));
         } catch (Exception e) {
             System.out.print(e);
@@ -82,6 +89,7 @@ public class AuthController {
     public ResponseEntity<?> refreshToken(@RequestBody TokenRefreshRequest request) {
         String requestRefreshToken = request.getRefreshToken();
 
+
         return refreshTokenService.findByToken(requestRefreshToken)
                 .map(refreshTokenService::verifyExpiration)
                 .map(RefreshToken::getUser)
@@ -92,6 +100,11 @@ public class AuthController {
                     } catch (JoseException e) {
                         throw new RuntimeException(e);
                     }
+                    Date expirationDate = jwtUtils.getExpirationFromToken(token);
+                    if (expirationDate == null) {
+                        return ResponseEntity.badRequest().body("Невалидный токен");
+                    }
+                    tokenWhitelistService.whitelistAddToken(token, expirationDate);
                     return ResponseEntity.ok(new AuthResponse(token, refreshTokenService.updateRefreshToken(requestRefreshToken).getToken()));
                 })
                 .orElse(ResponseEntity.status(HttpStatus.FORBIDDEN).build());
@@ -130,7 +143,7 @@ public class AuthController {
                 return ResponseEntity.badRequest().body("Невалидный токен");
             }
 
-            tokenBlacklistService.blacklistToken(token, expirationDate);
+            tokenWhitelistService.blockedToken(token);
             return ResponseEntity.ok("Токен успешно отозван");
         }
         return ResponseEntity.badRequest().body("Отсутствует токен для отзыва");
